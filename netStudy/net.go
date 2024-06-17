@@ -6,7 +6,7 @@ import (
 )
 
 func Init() {
-	addrs, err := net.LookupHost("localhost")
+	addrs, err := net.LookupTXT("github.com")
 	if err != nil {
 		fmt.Println(err)
 	}
