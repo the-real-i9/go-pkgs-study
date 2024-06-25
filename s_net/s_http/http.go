@@ -5,13 +5,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 func main() {
-	http.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
-		// res := "Bro! How ya doin?\n"
-		r.Write(w)
-		// w.Write([]byte(res))
+	http.HandleFunc("/myfiles/notes.md", func(w http.ResponseWriter, r *http.Request) {
+		// response ETag - for conditional request
+		// w.Header().Set("ETag", "girlsLikeYou")
+
+		file, err := os.Open("notes.md")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			w.WriteHeader(500)
+			fmt.Fprintln(w, "Internal Server Error")
+			return
+		}
+
+		fileStat, _ := file.Stat()
+
+		http.ServeContent(w, r, fileStat.Name(), fileStat.ModTime(), file)
 	})
 
 	http.HandleFunc("/foo/bar", func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +47,7 @@ func main() {
 				return
 			}
 			w.WriteHeader(500)
-			fmt.Fprintln(w, err)
+			fmt.Fprintln(w, "Internal Server Error")
 			return
 		}
 
