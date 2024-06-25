@@ -9,9 +9,7 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/myfiles/notes.md", func(w http.ResponseWriter, r *http.Request) {
-		// response ETag - for conditional request
-		// w.Header().Set("ETag", "girlsLikeYou")
+	http.HandleFunc("/myfiles/notes", func(w http.ResponseWriter, r *http.Request) {
 
 		file, err := os.Open("notes.md")
 		if err != nil {

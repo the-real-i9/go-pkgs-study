@@ -56,9 +56,11 @@ curl --data @tenpluschars.txt http://localhost:5000/upload
 
 ### Use
 
-This function, in one line, takes complete care of conditional or range request for a resource. You don't have to program for any specified condition or range header, as this function takes care it all. All you have to do is hand-over the resource (file) that would normally be received from that endpoint.
+This function, in one line, takes complete care of conditional or range request for a resource. You don't have to program for any conditional or range header specified in the request header, as this function takes care it all. All you have to do is hand-over the resource (file) that would normally be received from that endpoint.
 
-In fact, it takes care of the necessary response status (304 or 200), and headers to be returned provided our endpoint gets a `HEAD` request. Isn't that cool!
+In fact, it takes care of the necessary response status (304 or 200), and headers to be sent for a `HEAD` request. Isn't that cool!
+
+This function definitely comes in handy in a Web server!
 
 ### Signature
 
@@ -69,7 +71,7 @@ func ServeContent(w http.ResponseWriter, req *http.Request, name string, modtime
 ### Usage scenario
 
 ```go
-http.HandleFunc("/myfiles/notes.md", func(w http.ResponseWriter, r *http.Request) {
+http.HandleFunc("/myfiles/notes", func(w http.ResponseWriter, r *http.Request) {
 
   file, err := os.Open("notes.md")
   if err != nil {
@@ -84,6 +86,8 @@ http.HandleFunc("/myfiles/notes.md", func(w http.ResponseWriter, r *http.Request
   http.ServeContent(w, r, fileStat.Name(), fileStat.ModTime(), file)
  })
 ```
+
+> Note: Our endpoint URL has nothing to do with the resource sent. Any endpoint URL can be specified. Any resource can be sent.
 
 ### Test
 
