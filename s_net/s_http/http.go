@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 func main() {
-	http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "notes.md")
-	})
+	tp, _ := os.ReadFile("secure.txt")
+
+	http.Handle("/", http.FileServer(http.Dir(string(tp)+"/website")))
 
 	http.HandleFunc("/foo/bar", func(w http.ResponseWriter, r *http.Request) {
 		var fileSizeLimit int64 = 10

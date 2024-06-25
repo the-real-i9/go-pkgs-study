@@ -122,3 +122,43 @@ http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
 ```
 
 Wow! How consice!
+
+## `http.FileServer`
+
+### Use
+
+What do you ("john" - for example) think happens when you deploy your `build` folder on hosting sites like Netlify.
+
+In the remote server file system, a folder (`john_website` - for instance) containing the contents of your `build` folder (if not, actually, your build folder) is directly pointed to by your domain's root path.
+
+Precisely, the handler that hanldes the request to your domain is this `http.FileServer` (or equivalent function in other languages). It, basically, treats your website folder as a single file system.
+
+### Signature
+
+```go
+func FileServer(root http.FileSystem) http.Handler
+```
+
+### Usage scenario
+
+Say, your build folder contained the usual `index.html`, accompanied by sub-page folders, CSS and JavaScript files/folders $-$ the usual thing. On deployment the contents have now being transferred to a `{username}_website` folder.
+
+```go
+johnWebFS := http.Dir("/home/netlify/websites/john_wesbite")
+
+http.ListenAndServe("funcoding.netlify.app", http.FileServer(johnWebFS))
+```
+
+Yeah, Of course! One line, and your website is up and running.
+
+> That's just for my explanation, of course, you should change the parameters if you're trying this out
+
+```go
+myWebFS := http.Dir("path/to/website/folder")
+
+http.ListenAndServe("localhost:5000", http.FileServer(myWebFS))
+```
+
+### Test
+
+The usual website browsing. Just goto `https://funcoding.netlify.app`. Actually, `http://localhost:5000` in our case.
