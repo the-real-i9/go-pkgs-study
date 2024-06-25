@@ -1,4 +1,4 @@
-package netStudy
+package s_net
 
 import (
 	"fmt"

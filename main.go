@@ -1,7 +1,7 @@
 package main
 
-import "pkgstudy/netStudy"
+import "pkgstudy/s_net"
 
 func main() {
-	netStudy.Init()
+	s_net.Init()
 }
