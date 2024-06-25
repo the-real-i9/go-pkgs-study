@@ -56,7 +56,9 @@ curl --data @tenpluschars.txt http://localhost:5000/upload
 
 ### Use
 
-This function, in one line, takes care of conditional or range request for a resource. You don't have to program for the specified condition or range, this function takes care of that. All you have to do is handover the content that should (possibly) be sent in that endpoint.
+This function, in one line, takes complete care of conditional or range request for a resource. You don't have to program for any specified condition or range header, as this function takes care it all. All you have to do is hand-over the resource (file) that would normally be received from that endpoint.
+
+In fact, it takes care of the necessary response status (304 or 200), and headers to be returned provided our endpoint gets a `HEAD` request. Isn't that cool!
 
 ### Signature
 
@@ -85,8 +87,10 @@ http.HandleFunc("/myfiles/notes.md", func(w http.ResponseWriter, r *http.Request
 
 ### Test
 
-This client makes a conditional request based on last modified time. Our function decides whether to serve the response or not.
+This client executes a conditional request based on last modified time (as usual). Our function then decides whether to serve the response or not.
+
+The `curl` command below sends a conditional request, using the date specified in the request's `If-Modified-Since` header.
 
 ```curl
-curl --time-cond "Tue 25 June 2024 18:00:00" http://localhost:5000/myfiles/notes.md
+curl -z "Tue, 25 Jun 2024 17:00:00 GMT" http://localhost:5000/myfiles/notes.md
 ```
