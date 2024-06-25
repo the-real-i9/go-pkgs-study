@@ -5,23 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 )
 
 func main() {
-	http.HandleFunc("/myfiles/notes", func(w http.ResponseWriter, r *http.Request) {
-
-		file, err := os.Open("notes.md")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			w.WriteHeader(500)
-			fmt.Fprintln(w, "Internal Server Error")
-			return
-		}
-
-		fileStat, _ := file.Stat()
-
-		http.ServeContent(w, r, fileStat.Name(), fileStat.ModTime(), file)
+	http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "notes.md")
 	})
 
 	http.HandleFunc("/foo/bar", func(w http.ResponseWriter, r *http.Request) {

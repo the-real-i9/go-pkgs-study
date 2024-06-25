@@ -71,9 +71,9 @@ func ServeContent(w http.ResponseWriter, req *http.Request, name string, modtime
 ### Usage scenario
 
 ```go
-http.HandleFunc("/myfiles/notes", func(w http.ResponseWriter, r *http.Request) {
+http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
 
-  file, err := os.Open("notes.md")
+  file, err := os.Open("note.md")
   if err != nil {
    fmt.Fprintln(os.Stderr, err)
    w.WriteHeader(500)
@@ -87,7 +87,7 @@ http.HandleFunc("/myfiles/notes", func(w http.ResponseWriter, r *http.Request) {
  })
 ```
 
-> Note: Our endpoint URL has nothing to do with the resource sent. Any endpoint URL can be specified. Any resource can be sent.
+Note that, our endpoint URL has nothing to do with the resource sent. Any endpoint URL can be specified. Any resource can be sent.
 
 ### Test
 
@@ -98,3 +98,27 @@ The `curl` command below sends a conditional request, using the date specified i
 ```curl
 curl -z "Tue, 25 Jun 2024 17:00:00 GMT" http://localhost:5000/myfiles/notes.md
 ```
+
+## `http.ServeFile`
+
+A more concise version of `http.ServeContent`, only that if our URL ends in "/index.html", it redirects to a URL without the ending "/index.html". This is totally reasonable, as "/index.html" is meant to be our root page. However, if the `http.ServeContent` behaviour might be what you want, just go for it.
+
+Note still, that the resource sent has nothing to do with the URL specified.
+
+### Signature
+
+```go
+func ServeFile(w http.ResponseWriter, r *http.Request, name string)
+```
+
+### Usage scenario
+
+Now for the conciseness:
+
+```go
+http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
+  http.ServeFile(w, r, "note.md")
+})
+```
+
+Wow! How consice!
