@@ -1,16 +1,15 @@
-package s_net
+package main
 
 import (
 	"fmt"
 	"net"
 )
 
-func Init() {
+func main() {
 	addrs, err := net.LookupTXT("github.com")
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	fmt.Println(addrs)
-
 }
