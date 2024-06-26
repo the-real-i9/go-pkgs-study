@@ -1,44 +1,23 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 )
 
 func main() {
-	tp, _ := os.ReadFile("secure.txt")
 
-	http.Handle("/", http.FileServer(http.Dir(string(tp)+"/website")))
-
-	http.HandleFunc("/foo/bar", func(w http.ResponseWriter, r *http.Request) {
-		var fileSizeLimit int64 = 10
-
-		limBody := http.MaxBytesReader(w, r.Body, fileSizeLimit)
-
-		defer limBody.Close()
-
-		data, err := io.ReadAll(limBody)
-
-		// incomplete read data
-		fmt.Printf("%s\n", data)
-
+	http.HandleFunc("/myvideo", func(w http.ResponseWriter, r *http.Request) {
+		video, err := os.ReadFile("myvideo.mp4")
 		if err != nil {
-			var mbe *http.MaxBytesError
-
-			if errors.As(err, &mbe) {
-				w.WriteHeader(http.StatusRequestEntityTooLarge)
-				fmt.Fprintf(w, "File too large. Limit is %d bytes.\n", fileSizeLimit)
-				return
-			}
 			w.WriteHeader(500)
-			fmt.Fprintln(w, "Internal Server Error")
+			fmt.Fprintln(w, "Error reading file:", err)
 			return
 		}
 
-		fmt.Fprintln(w, "Upload success!")
+		w.Write(video)
+
 	})
 
 	http.ListenAndServe(":5000", nil)
