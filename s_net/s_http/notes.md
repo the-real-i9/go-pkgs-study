@@ -353,13 +353,25 @@ http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
   err := r.ParseMultipartForm(maxMemory)
   // handle error appropriately
 
-  files := r.MultipartForm.File["pic"]
-  file, _ := files[0].Open()
-  data, _ := io.ReadAll(file)
+  filehs := r.MultipartForm.File["pic"]
+  for _, fileh := range filehs {
+    file, _ := fileh.Open()
 
-  for key, files := range r.MultipartForm.File {
-    file, _ := files[0].Open()
+    defer file.Close()
+
     data, _ := io.ReadAll(file)
+    // use data
+  }
+
+  for key, filehs := range r.MultipartForm.File {
+    for _, fileh := range filehs {
+      file, _ := fileh.Open()
+  
+      defer file.Close()
+  
+      data, _ := io.ReadAll(file)
+      // use data
+    }
   }
 
   name := r.MultipartForm.Value["name"][0]

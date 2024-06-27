@@ -2,35 +2,35 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"math"
-	"mime/multipart"
 	"net/http"
 )
 
 func main() {
 
 	http.HandleFunc("/postform", func(w http.ResponseWriter, r *http.Request) {
-		lim := int64(1024 * (math.Pow10(1)))
+		var lim int64 = 500 * (1024 * 1000)
 
 		r.Body = http.MaxBytesReader(w, r.Body, lim)
 
 		defer r.Body.Close()
 
-		pmferr := r.ParseMultipartForm(1024 * lim)
+		pmferr := r.ParseMultipartForm(lim)
 		if pmferr != nil {
 			http.Error(w, "File too large.", http.StatusRequestEntityTooLarge)
 			fmt.Println("ParseMultipartForm:", pmferr)
 			return
 		}
 
-		files := r.MultipartForm.File["pic"]
-		file, _ := files[0].Open()
-		data, _ := io.ReadAll(file)
+		filehs := r.MultipartForm.File["pic"]
+		for _, fileh := range filehs {
+			fmt.Println(fileh.Filename)
 
-		for key, files := range r.MultipartForm.File {
-			file, _ := files[0].Open()
-			data, _ := io.ReadAll(file)
+		}
+
+		for _, filehs := range r.MultipartForm.File {
+			for _, fileh := range filehs {
+				fmt.Println(fileh.Filename)
+			}
 		}
 
 	})
