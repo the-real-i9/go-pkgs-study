@@ -2,21 +2,36 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"math"
+	"mime/multipart"
 	"net/http"
-	"os"
 )
 
 func main() {
 
-	http.HandleFunc("/myvideo", func(w http.ResponseWriter, r *http.Request) {
-		video, err := os.ReadFile("myvideo.mp4")
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintln(w, "Error reading file:", err)
+	http.HandleFunc("/postform", func(w http.ResponseWriter, r *http.Request) {
+		lim := int64(1024 * (math.Pow10(1)))
+
+		r.Body = http.MaxBytesReader(w, r.Body, lim)
+
+		defer r.Body.Close()
+
+		pmferr := r.ParseMultipartForm(1024 * lim)
+		if pmferr != nil {
+			http.Error(w, "File too large.", http.StatusRequestEntityTooLarge)
+			fmt.Println("ParseMultipartForm:", pmferr)
 			return
 		}
 
-		w.Write(video)
+		files := r.MultipartForm.File["pic"]
+		file, _ := files[0].Open()
+		data, _ := io.ReadAll(file)
+
+		for key, files := range r.MultipartForm.File {
+			file, _ := files[0].Open()
+			data, _ := io.ReadAll(file)
+		}
 
 	})
 

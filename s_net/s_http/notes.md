@@ -16,11 +16,11 @@ func MaxBytesReader(w http.ResponseWriter, r io.ReadCloser, n int64) io.ReadClos
 http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
   var fileSizeLimit int64 = 10
 
-  limBody := http.MaxBytesReader(w, r.Body, fileSizeLimit)
+  r.Body = http.MaxBytesReader(w, r.Body, fileSizeLimit)
 
-  defer limBody.Close()
+  defer r.Body.Close()
 
-  data, err := io.ReadAll(limBody)
+  data, err := io.ReadAll(r.Body)
 
   // incomplete read data
   fmt.Printf("%s\n", data)
@@ -46,7 +46,7 @@ http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
 
 This client tries to send a text file with more than ten ascii characters.
 
-```curl
+```bash
 curl --data @tenpluschars.txt http://localhost:5000/upload
 ```
 
@@ -91,9 +91,9 @@ Note that, our endpoint URL has nothing to do with the resource sent. Any endpoi
 
 This client executes a conditional request based on last modified time (as usual). Our function then decides whether to serve the response or not.
 
-The `curl` command below sends a conditional request, using the date specified in the request's `If-Modified-Since` header.
+The `bash` command below sends a conditional request, using the date specified in the request's `If-Modified-Since` header.
 
-```curl
+```bash
 curl -z "Tue, 25 Jun 2024 17:00:00 GMT" http://localhost:5000/myfiles/notes.md
 ```
 
@@ -176,8 +176,6 @@ Another interesting behaviour is that, you can queue more `Write([]byte)` method
 
 Consider this demonstration below:
 
-## Demonstration
-
 ```go
 http.HandleFunc("/mynotes", func(w http.ResponseWriter, r *http.Request) {
   notes, err := os.ReadFile("notes.md")
@@ -204,4 +202,176 @@ http.HandleFunc("/mynotes", func(w http.ResponseWriter, r *http.Request) {
   w.Write(html)
 
  })
+```
+
+## Form handling
+
+### `(http.Request).ParseMultipartForm`
+
+Before we can start getting form values and files from our request, first we must parse them from the request body.
+
+This request method parses the body, up to the size specified in `maxMemory`, into memory (containing usable data). The remaining data beyond `maxMemory` is stored on disk (unsuable).
+
+#### Signature
+
+```go
+func (r *http.Request) ParseMultipartForm(maxMemory int64) error
+```
+
+Note that, the `maxMemory` specified isn't intend to set the body read limit. If you want to set the body read limit, thereby allowing this function to return error when body read limit is reached, you have to use `http.MaxBytesReader(r.Body)` like we discussed above.
+
+#### Usage
+
+```go
+// set r.Body
+http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
+  limit := 100 // 100 bytes.
+  // Practically, use an estimate of the allowed maximum file size (sum of, if multiple) plus the size of other form data
+
+  r.Body = http.MaxBytesReader(w, r, limit) // advisable
+
+  err := r.ParseMultipartForm(limit) // Of course, why allocate more than body read limit
+  // if body read limit is reached while parsing, this error would be: "http: request body too large"
+})
+```
+
+After parsing the form successfully, request properties and methods that provide access to form data will now contain the parsed form data. Lets take a look into these properties and methods.
+
+### `(http.Request).FormValue`
+
+For a non-file type form field, this function gets the first of `n` value associated with the given key.
+
+A file type form field is treated as non-existent.
+
+#### Signature
+
+```go
+func (*http.Request) FormValue(key string) string
+```
+
+#### Usage
+
+```go
+http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
+  r.ParseMultipartForm(maxMemory)
+
+  uname := r.FormValue("username")
+
+  fmt.Println(uname) // i9 (as tested below)
+})
+```
+
+#### Test
+
+```bash
+curl --form username=i9 age=23 http:localhost:5000/profile
+```
+
+### `(http.Request).Form`
+
+The `Form` object of request has an underlying `map[string][]string` that is populated with "non-file type" form fields of the parsed form. Form fields of type "file" are excluded from the map.
+
+It exposes methods to access and modify the form (in case of a client request). The only method we'll need in our case is the `Get()` method, which returns the first of `n` values associated with the given key.
+
+Another way is to iterate over `key=[values...]` pair of the underlying map. This way you can get all the values associated with a key.
+
+#### Usage
+
+```go
+http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
+  err := r.ParseMultipartForm(maxMemory)
+  // handle error appropriately
+
+  age := r.Form.Get("age")
+  fmt.Println(age) // 23 (as tested below)
+
+  // iterate over the map
+  for key, values := range r.Form {
+    fmt.Printf("%s: %s\n", key, value[0])
+  }
+})
+```
+
+#### Test
+
+```bash
+curl --form username=i9 age=23 http:localhost:5000/profile
+```
+
+### `(http.Request).FormFile`
+
+For a form field of type "file", this function gets the first of `n` files associated with the specified key.
+
+A non-file type form field is treated as non-existent.
+
+#### Signature
+
+```go
+func (*http.Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error)
+```
+
+The `multipart.File` implements the Reader interface, which means we can read the data with functions like `io.ReadAll()`. The `*multipart.FileHeader` allows us to read the file properties like filename, size, and header. It also has an `Open()` method that returns the same `multipart.File`.
+
+#### Usage
+
+```go
+http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
+  err := r.ParseMultipartForm(maxMemory)
+  // handle error appropriately
+
+  f, fh, _ := r.FormFile("pic")
+
+  defer f.Close()
+
+  fmt.Println(fh.Filename, fh.Header.Get("Content-Type"))
+
+  data, _ := io.ReadAll(f)
+
+  os.WriteFile("path/to/storage/"+fh.filename, data, os.ModePerm) // keep in file system
+})
+```
+
+#### Test
+
+```bash
+curl --form pic=@mypic.png username=i9 age=23 http:localhost:5000/profile
+```
+
+### `(http.Request).MultipartForm
+
+The request's `MultipartForm` object has
+
+- a `File` object with an underlying `map[string][]*multipart.FileHeader` type, and
+- a `Value` object with an underlying `map[string][]string` type
+
+However, you only access values directly from the map, there are no methods exposed.
+
+#### Usage
+
+```go
+http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
+  err := r.ParseMultipartForm(maxMemory)
+  // handle error appropriately
+
+  files := r.MultipartForm.File["pic"]
+  file, _ := files[0].Open()
+  data, _ := io.ReadAll(file)
+
+  for key, files := range r.MultipartForm.File {
+    file, _ := files[0].Open()
+    data, _ := io.ReadAll(file)
+  }
+
+  name := r.MultipartForm.Value["name"][0]
+
+  for key, values := range r.MultipartForm.Value {
+    name := values[0]
+  }
+})
+```
+
+#### Test
+
+```bash
+curl --form pic=@mypic.png username=i9 age=23 http:localhost:5000/profile
 ```
