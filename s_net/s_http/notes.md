@@ -105,13 +105,13 @@ Try sending a video this time. Run in the browser an HTML file having a `video` 
 
 A more concise version of `http.ServeContent`, with the following differences:
 
-- It treats a URL path ending in `/index.html` specially by redirecting to the path without `/index.html`. It assumes an `index.html` file wants to be served (and most implementations hide the ending `/index.html` in these situation). That said, like `http.ServeContent` the resource served has nothing to do with the endpoint URL specified. Any type of resource can be served, even in this case.
-- It is best for serving files from the file system $-$ one line and we're done. `http.ServeContent`, however, allows serving any type that implements the `io.ReadSeeker` interface. It doesn't have to be a file from the file system. `http.ServeContent` is therefore, more flexible.
+- It treats a URL path ending in `/index.html` specially by redirecting to the path without `/index.html`. It assumes an `index.html` file wants to be served (and most implementations hide the ending `/index.html` in these situation). And like `http.ServeContent`, the resource served has nothing to do with the endpoint URL specified. Any type of resource can be served $-$ even in this case.
+- It is best for serving files from the file system $-$ one liner. `http.ServeContent`, however, allows serving any type that implements the `io.ReadSeeker` interface. It doesn't have to be a file from the file system. `http.ServeContent` is therefore, more flexible.
 
 ### Signature
 
 ```go
-func ServeFile(w http.ResponseWriter, r *http.Request, name string)
+func ServeFile(w http.ResponseWriter, r *http.Request, pathtofile string)
 ```
 
 ### Usage scenario
@@ -120,6 +120,27 @@ func ServeFile(w http.ResponseWriter, r *http.Request, name string)
 http.HandleFunc("/myfiles/note", func(w http.ResponseWriter, r *http.Request) {
   http.ServeFile(w, r, "/path/to/file")
 })
+```
+
+## `http.Dir`
+
+`http.Dir` makes a `FileSystem` out the specified native file system directory path you specify.
+
+You can read the files within the created `FileSystem` with its `Open()` method or pass it directly to an implementation that accepts a `FileSystem` interface, mostly `http.FileServer` $-$ addressed below. This is particularly useful in web servers.
+
+### Usage
+
+```go
+func httpDirUsage() {
+  home, _ := os.UserHomeDir()
+
+  dir := http.Dir(home + "/www") // makes the "www" directory into a file system
+  htmlFile, _ := dir.Open("index.html")
+
+  defer htmlFile.Close()
+
+  data, _ := io.ReadAll(htmlFile)
+}
 ```
 
 ## `http.FileServer`
@@ -138,20 +159,20 @@ func FileServer(root http.FileSystem) http.Handler
 
 ### Usage scenario
 
-Say, your build folder contained the usual `index.html`, accompanied by sub-page folders, CSS and JavaScript files/folders $-$ the usual thing. On deployment the contents have now being transferred to a `{username}_website` folder.
+Say, your build folder contains the usual `index.html`, accompanied by subpages, CSS, JS files and folders containing them $-$ the usual thing. On deployment, the contents have now being transferred to a `{username}_website` folder.
 
 ```go
-johnWebFS := http.Dir("/computer/netlify/websites/john_wesbite")
+johnWebFS := http.Dir("/home/netlify/www/john_wesbite")
 
 http.ListenAndServe("funcoding.netlify.app", http.FileServer(johnWebFS))
 ```
 
 Yeah, Of course! One line, and your website is up and running.
 
-> That's just for my explanation, of course, you should change the parameters if you're trying this out
+> That's just for our explanation, of course, you should change the parameters if you're trying this out
 
 ```go
-myWebFS := http.Dir("path/to/website/folder")
+myWebFS := http.Dir("path/to/www/folder")
 
 http.ListenAndServe("localhost:5000", http.FileServer(myWebFS))
 ```
@@ -166,7 +187,7 @@ The famous `Write()` method??? Who doesn't know what that does?
 
 Yeah, we all know what it does. But what it really does and how it does it is what's intriguing.
 
-This `Write()` method actually "streams" data to the client "in chunks" and sets `Transfer-Encoding: "chunked"` header. It doesn't transfer whole data to the client at once. A 1gb video data is contained in a byte slice, for instance, will sent it in chunks. If you inspect the network monitor in your browser, you'll see a *"CAUTION: request is not finished yet!"* warning, and you'll notice the amount of data transfered shown (look bottom-left) is far from 1gb. In fact, pausing the video also pauses the data transfer.
+This `Write()` method actually "streams" data to the client "in chunks" and sets `Transfer-Encoding: "chunked"` header. It doesn't transfer whole data to the client at once. A 1gb video data is contained in a byte slice, for instance, will be sent in chunks. Try inspecting your browser's network monitor, you'll see a *"CAUTION: request is not finished yet!"* warning, and you'll notice the amount of data transfered (bottom-left) is far from 1gb. In fact, pausing the video also pauses the data transfer.
 
 This original size of this video below is 26.7mb. The amount of data transfer below is just 7.3mb.
 
@@ -204,186 +225,4 @@ http.HandleFunc("/mynotes", func(w http.ResponseWriter, r *http.Request) {
  })
 ```
 
-## Form handling
-
-### `(http.Request).ParseMultipartForm`
-
-Before we can start getting form values and files from our request, first we must parse them from the request body.
-
-This request method parses the body, up to the size specified in `maxMemory`, into memory (containing usable data). The remaining data beyond `maxMemory` is stored on disk (unsuable).
-
-#### Signature
-
-```go
-func (r *http.Request) ParseMultipartForm(maxMemory int64) error
-```
-
-Note that, the `maxMemory` specified isn't intend to set the body read limit. If you want to set the body read limit, thereby allowing this function to return error when body read limit is reached, you have to use `http.MaxBytesReader(r.Body)` like we discussed above.
-
-#### Usage
-
-```go
-// set r.Body
-http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
-  limit := 100 // 100 bytes.
-  // Practically, use an estimate of the allowed maximum file size (sum of, if multiple) plus the size of other form data
-
-  r.Body = http.MaxBytesReader(w, r, limit) // advisable
-
-  err := r.ParseMultipartForm(limit) // Of course, why allocate more than body read limit
-  // if body read limit is reached while parsing, this error would be: "http: request body too large"
-})
-```
-
-After parsing the form successfully, request properties and methods that provide access to form data will now contain the parsed form data. Lets take a look into these properties and methods.
-
-### `(http.Request).FormValue`
-
-For a non-file type form field, this function gets the first of `n` value associated with the given key.
-
-A file type form field is treated as non-existent.
-
-#### Signature
-
-```go
-func (*http.Request) FormValue(key string) string
-```
-
-#### Usage
-
-```go
-http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
-  r.ParseMultipartForm(maxMemory)
-
-  uname := r.FormValue("username")
-
-  fmt.Println(uname) // i9 (as tested below)
-})
-```
-
-#### Test
-
-```bash
-curl --form username=i9 age=23 http:localhost:5000/profile
-```
-
-### `(http.Request).Form`
-
-The `Form` object of request has an underlying `map[string][]string` that is populated with "non-file type" form fields of the parsed form. Form fields of type "file" are excluded from the map.
-
-It exposes methods to access and modify the form (in case of a client request). The only method we'll need in our case is the `Get()` method, which returns the first of `n` values associated with the given key.
-
-Another way is to iterate over `key=[values...]` pair of the underlying map. This way you can get all the values associated with a key.
-
-#### Usage
-
-```go
-http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
-  err := r.ParseMultipartForm(maxMemory)
-  // handle error appropriately
-
-  age := r.Form.Get("age")
-  fmt.Println(age) // 23 (as tested below)
-
-  // iterate over the map
-  for key, values := range r.Form {
-    fmt.Printf("%s: %s\n", key, value[0])
-  }
-})
-```
-
-#### Test
-
-```bash
-curl --form username=i9 age=23 http:localhost:5000/profile
-```
-
-### `(http.Request).FormFile`
-
-For a form field of type "file", this function gets the first of `n` files associated with the specified key.
-
-A non-file type form field is treated as non-existent.
-
-#### Signature
-
-```go
-func (*http.Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error)
-```
-
-The `multipart.File` implements the Reader interface, which means we can read the data with functions like `io.ReadAll()`. The `*multipart.FileHeader` allows us to read the file properties like filename, size, and header. It also has an `Open()` method that returns the same `multipart.File`.
-
-#### Usage
-
-```go
-http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
-  err := r.ParseMultipartForm(maxMemory)
-  // handle error appropriately
-
-  f, fh, _ := r.FormFile("pic")
-
-  defer f.Close()
-
-  fmt.Println(fh.Filename, fh.Header.Get("Content-Type"))
-
-  data, _ := io.ReadAll(f)
-
-  os.WriteFile("path/to/storage/"+fh.filename, data, os.ModePerm) // keep in file system
-})
-```
-
-#### Test
-
-```bash
-curl --form pic=@mypic.png username=i9 age=23 http:localhost:5000/profile
-```
-
-### `(http.Request).MultipartForm
-
-The request's `MultipartForm` object has
-
-- a `File` object with an underlying `map[string][]*multipart.FileHeader` type, and
-- a `Value` object with an underlying `map[string][]string` type
-
-However, you only access values directly from the map, there are no methods exposed.
-
-#### Usage
-
-```go
-http.HandleFunc("/profile", func(w http.ResponseWriter, r *http.Request) {
-  err := r.ParseMultipartForm(maxMemory)
-  // handle error appropriately
-
-  filehs := r.MultipartForm.File["pic"]
-  for _, fileh := range filehs {
-    file, _ := fileh.Open()
-
-    defer file.Close()
-
-    data, _ := io.ReadAll(file)
-    // use data
-  }
-
-  for key, filehs := range r.MultipartForm.File {
-    for _, fileh := range filehs {
-      file, _ := fileh.Open()
-  
-      defer file.Close()
-  
-      data, _ := io.ReadAll(file)
-      // use data
-    }
-  }
-
-  name := r.MultipartForm.Value["name"][0]
-
-  for key, values := range r.MultipartForm.Value {
-    name := values[0]
-  }
-})
-```
-
-#### Test
-
-```bash
-curl --form pic=@mypic.png username=i9 age=23 http:localhost:5000/profile
-```
+## Streaming response with `(http.Flusher).Flush()`

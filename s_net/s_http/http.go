@@ -1,38 +1,60 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
 func main() {
 
-	http.HandleFunc("/postform", func(w http.ResponseWriter, r *http.Request) {
-		var lim int64 = 500 * (1024 * 1000)
-
-		r.Body = http.MaxBytesReader(w, r.Body, lim)
-
-		defer r.Body.Close()
-
-		pmferr := r.ParseMultipartForm(lim)
-		if pmferr != nil {
-			http.Error(w, "File too large.", http.StatusRequestEntityTooLarge)
-			fmt.Println("ParseMultipartForm:", pmferr)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(500)
 			return
 		}
 
-		filehs := r.MultipartForm.File["pic"]
-		for _, fileh := range filehs {
-			fmt.Println(fileh.Filename)
-
+		dir := http.Dir(home) // makes the user home directory into a file system
+		bashrcFile, err := dir.Open(".bashrc")
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(500)
+			return
 		}
 
-		for _, filehs := range r.MultipartForm.File {
-			for _, fileh := range filehs {
-				fmt.Println(fileh.Filename)
+		defer bashrcFile.Close()
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			log.Println("flusher is not implemented")
+			w.WriteHeader(500)
+			return
+		}
+
+		fileScanner := bufio.NewScanner(bashrcFile)
+		// fileScanner.Split(bufio.ScanLines)
+
+		for fileScanner.Scan() {
+			_, w_err := w.Write([]byte(fileScanner.Text() + "\n"))
+			if w_err != nil {
+				log.Println(err)
+				w.WriteHeader(500)
+				return
 			}
+			time.Sleep(500 * time.Millisecond)
+			flusher.Flush()
 		}
 
+		_, w_err := w.Write([]byte(""))
+		if w_err != nil {
+			log.Println(err)
+			w.WriteHeader(500)
+			return
+		}
 	})
 
 	http.ListenAndServe(":5000", nil)
