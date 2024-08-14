@@ -11,22 +11,15 @@ import (
 func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		home, err := os.UserHomeDir()
+
+		notesFile, err := os.Open("notes.md.html")
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(500)
 			return
 		}
 
-		dir := http.Dir(home) // makes the user home directory into a file system
-		bashrcFile, err := dir.Open(".bashrc")
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(500)
-			return
-		}
-
-		defer bashrcFile.Close()
+		defer notesFile.Close()
 
 		flusher, ok := w.(http.Flusher)
 		if !ok {
@@ -35,25 +28,20 @@ func main() {
 			return
 		}
 
-		fileScanner := bufio.NewScanner(bashrcFile)
-		// fileScanner.Split(bufio.ScanLines)
+		fileScanner := bufio.NewScanner(notesFile)
+
+		fileScanner.Split(bufio.ScanBytes)
 
 		for fileScanner.Scan() {
-			_, w_err := w.Write([]byte(fileScanner.Text() + "\n"))
+			w.Header().Set("Content-Type", "text/html")
+			_, w_err := w.Write(fileScanner.Bytes())
 			if w_err != nil {
 				log.Println(err)
-				w.WriteHeader(500)
 				return
 			}
-			time.Sleep(500 * time.Millisecond)
+			// w.Write([]byte("\n"))
+			time.Sleep(10 * time.Millisecond)
 			flusher.Flush()
-		}
-
-		_, w_err := w.Write([]byte(""))
-		if w_err != nil {
-			log.Println(err)
-			w.WriteHeader(500)
-			return
 		}
 	})
 
