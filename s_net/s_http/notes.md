@@ -1,4 +1,4 @@
-# Handy functions of `http`
+# Handy functions of the `http` package
 
 ## `http.MaxBytesReader`
 
@@ -492,10 +492,16 @@ w.Write([]byte("\n"))
 // "\n" is a character, it is not stripped
 ```
 
-This time, try using an html file for a more interesting ChatGPT-like experience.
+This time, try using an html file for the more interesting, ChatGPT-like experience.
 
 > **Warning!!!** Don't use `Flush()` for real-world audio/video streaming. `Flush()` is intended for sending large size data (that is meant to be consumed once) *in chunks* until it is completely transffered. Real-world audio/video streaming uses Range-Requests, where data is requested in portions at any part of the audio/video.\
 \
 Try using `Flush()` to send a video in chunks. You'll observe that you can't achieve the "seeking" behaviour (skipping forward or backward). The video will play till the end and stop, unless you restart it, in which case it requests the video again. This is just like the text file example above, it is sent once and consumed once.\
 \
 In contrast, if you use range requests for the video (the default implementation in browsers and http servers $-$ `http.ServeContent`), you'll be able to seek forward and backward, each performing a new range request.
+
+### Test
+
+```bash
+curl http://localhost:5000
+```
