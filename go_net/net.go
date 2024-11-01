@@ -1,11 +1,11 @@
-package main
+package go_net
 
 import (
 	"fmt"
 	"net"
 )
 
-func main() {
+func Run() {
 	addrs, err := net.LookupTXT("github.com")
 	if err != nil {
 		fmt.Println(err)
